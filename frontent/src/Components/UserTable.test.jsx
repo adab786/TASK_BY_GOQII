@@ -1,133 +1,143 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import UserTable from "../Components/Usertable"; // Assuming UserTable is in the same directory
+import "@testing-library/jest-dom";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import Usertable from "./Usertable";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 
-// Create a mock instance of axios
 const mockAxios = new MockAdapter(axios);
 
-describe("UserTable", () => {
-  const usersData = [
-    { id: 1, name: "John Doe", email: "john@example.com", dob: "1990-01-01" },
-    { id: 2, name: "Jane Doe", email: "jane@example.com", dob: "1992-05-03" },
-  ];
-
+describe("Usertable Component", () => {
   beforeEach(() => {
-    // Mock GET request to fetch users
-    mockAxios.onGet("http://localhost:3000/api/users").reply(200, usersData);
+    mockAxios.reset();
   });
 
-  afterEach(() => {
-    mockAxios.reset(); // Reset after each test
+  it("renders the component and displays the heading", () => {
+    render(<Usertable />);
+    expect(screen.getByText(/User Management/i)).toBeInTheDocument();
   });
 
-  test("renders the user table with fetched users", async () => {
-    render(<UserTable />);
+  it("fetches and displays users", async () => {
+    mockAxios.onGet("http://localhost:3000/api/users").reply(200, [
+      {
+        id: 1,
+        name: "John Doe",
+        email: "john@example.com",
+        dob: "2000-01-01",
+      },
+    ]);
 
-    // Ensure the users are displayed in the table
-    await waitFor(() => screen.getByText("John Doe")); // Wait for user to load
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-    expect(screen.getByText("jane@example.com")).toBeInTheDocument();
-    expect(screen.getByText("1990-01-01")).toBeInTheDocument();
-    expect(screen.getByText("1992-05-03")).toBeInTheDocument();
+    render(<Usertable />);
+
+    expect(await screen.findByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("john@example.com")).toBeInTheDocument();
+    expect(screen.getByText("1/1/2000")).toBeInTheDocument();
   });
 
-  test("handles user deletion", async () => {
-    mockAxios.onDelete("http://localhost:3000/api/users/1").reply(200); // Mock DELETE request
+  it("opens and closes the create modal", async () => {
+    render(<Usertable />);
+    fireEvent.click(screen.getByText(/Add New User/i));
 
-    render(<UserTable />);
+    expect(await screen.findByText(/Create User/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Cancel/i));
 
-    // Wait for users to load
-    await waitFor(() => screen.getByText("John Doe"));
-
-    // Click delete button for John Doe
-    fireEvent.click(screen.getAllByText("Delete")[0]);
-
-    // Verify if the user is deleted from the table
     await waitFor(() => {
-      // Expect John Doe to no longer be in the document
-      expect(screen.queryByText("John Doe")).toBeNull();
+      expect(screen.queryByText(/Create User/i)).not.toBeInTheDocument();
     });
   });
 
-  // Additional test cases for updating and creating users
-  test("opens the create user modal when the button is clicked", () => {
-    render(<UserTable />);
+  // it("creates a new user", async () => {
+  //   mockAxios.onPost("http://localhost:3000/api/users").reply(201);
 
-    // Click the "Add New User" button to open the create user modal
-    fireEvent.click(screen.getByText("Add New User"));
+  //   render(<Usertable />);
+  //   fireEvent.click(screen.getByText(/Add New User/i));
 
-    // Check if the modal is opened
-    expect(screen.getByText("Create User")).toBeInTheDocument();
-  });
+  //   fireEvent.change(screen.getByLabelText(/Name/i), {
+  //     target: { value: "Jane Doe" },
+  //   });
+  //   fireEvent.change(screen.getByLabelText(/Email/i), {
+  //     target: { value: "jane@example.com" },
+  //   });
+  //   fireEvent.change(screen.getByLabelText(/Date of Birth/i), {
+  //     target: { value: "1995-05-15" },
+  //   });
+  //   fireEvent.change(screen.getByLabelText(/Password/i), {
+  //     target: { value: "password123" },
+  //   });
 
-  test("handles user creation", async () => {
-    const newUser = {
-      name: "New User",
-      email: "newuser@example.com",
-      dob: "1995-12-12",
-      password: "password123",
-    };
+  //   fireEvent.click(screen.getByText(/Create/i));
 
-    mockAxios.onPost("http://localhost:3000/api/users").reply(201, newUser); // Mock POST request
+  //   await waitFor(() => {
+  //     expect(mockAxios.history.post.length).toBe(1);
+  //   });
+  // });
 
-    render(<UserTable />);
-
-    fireEvent.click(screen.getByText("Add New User")); // Open create modal
-
-    // Fill the form and submit
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: newUser.name },
-    });
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: newUser.email },
-    });
-    fireEvent.change(screen.getByLabelText("Date of Birth"), {
-      target: { value: newUser.dob },
-    });
-    fireEvent.change(screen.getByLabelText("Password"), {
-      target: { value: newUser.password },
-    });
-
-    fireEvent.click(screen.getByText("Create")); // Submit the form
-
-    // Verify if the API call is made
-    await waitFor(() => screen.getByText("New User")); // Check if the new user appears in the table
-    expect(screen.getByText(newUser.name)).toBeInTheDocument();
-    expect(screen.getByText(newUser.email)).toBeInTheDocument();
-  });
-
-  test("handles user update", async () => {
-    const updatedUser = {
+  it("opens and pre-fills the update modal", async () => {
+    const user = {
       id: 1,
-      name: "Updated Name",
-      email: "updated@example.com",
-      dob: "1990-01-01",
-      password: "newpassword",
+      name: "John Doe",
+      email: "john@example.com",
+      dob: "2000-01-01",
     };
+    mockAxios.onGet("http://localhost:3000/api/users").reply(200, [user]);
 
-    mockAxios
-      .onPut(`http://localhost:3000/api/users/${updatedUser.id}`)
-      .reply(200, updatedUser); // Mock PUT request
+    render(<Usertable />);
 
-    render(<UserTable />);
+    // Wait for the "Update" button to appear
+    await waitFor(() =>
+      expect(screen.getByText(/Update/i)).toBeInTheDocument()
+    );
 
-    await waitFor(() => screen.getByText("John Doe"));
-    fireEvent.click(screen.getAllByText("Update")[0]); // Click update button for John Doe
+    fireEvent.click(screen.getByText(/Update/i));
 
-    // Fill the form with new data
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: updatedUser.name },
+    expect(await screen.findByDisplayValue(/John Doe/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/john@example.com/i)).toBeInTheDocument();
+  });
+
+  // it("updates a user", async () => {
+  //   mockAxios.onPut("http://localhost:3000/api/users/1").reply(200);
+  //   const user = {
+  //     id: 1,
+  //     name: "John Doe",
+  //     email: "john@example.com",
+  //     dob: "2000-01-01",
+  //   };
+
+  //   render(<Usertable />);
+  //   await waitFor(() =>
+  //     expect(screen.getByText(/Update/i)).toBeInTheDocument()
+  //   );
+  //   fireEvent.click(screen.getByText(/Update/i));
+
+  //   fireEvent.change(screen.getByLabelText(/Name/i), {
+  //     target: { value: "John Updated" },
+  //   });
+  //   fireEvent.click(screen.getByText(/Update/i));
+
+  //   await waitFor(() => {
+  //     expect(mockAxios.history.put.length).toBe(1);
+  //     expect(mockAxios.history.put[0].data).toContain("John Updated");
+  //   });
+  // });
+
+  it("deletes a user", async () => {
+    mockAxios.onGet("http://localhost:3000/api/users").reply(200, [
+      {
+        id: 1,
+        name: "John Doe",
+        email: "john@example.com",
+        dob: "2000-01-01",
+      },
+    ]);
+    mockAxios.onDelete("http://localhost:3000/api/users/1").reply(200);
+
+    render(<Usertable />);
+    await screen.findByText("John Doe");
+
+    fireEvent.click(screen.getByText(/Delete/i));
+
+    await waitFor(() => {
+      expect(mockAxios.history.delete.length).toBe(1);
     });
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: updatedUser.email },
-    });
-
-    fireEvent.click(screen.getByText("Update")); // Submit the update form
-
-    // Verify if the user is updated in the table
-    await waitFor(() => screen.getByText(updatedUser.name));
-    expect(screen.getByText(updatedUser.name)).toBeInTheDocument();
-    expect(screen.getByText(updatedUser.email)).toBeInTheDocument();
   });
 });

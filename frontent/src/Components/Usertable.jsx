@@ -162,10 +162,13 @@ function Usertable() {
             <h2 className="text-xl font-semibold mb-4">Create User</h2>
             <form onSubmit={handleCreateSubmit}>
               <div className="mb-4">
-                <label className="block">Name</label>
+                <label htmlFor="name" className="block">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="name"
+                  id="name"
                   value={newUser.name}
                   onChange={handleInputChange}
                   className="w-full p-2 border border-gray-300 rounded"
@@ -173,10 +176,13 @@ function Usertable() {
                 />
               </div>
               <div className="mb-4">
-                <label className="block">Email</label>
+                <label htmlFor="email" className="block">
+                  Email
+                </label>
                 <input
                   type="email"
                   name="email"
+                  id="email"
                   value={newUser.email}
                   onChange={handleInputChange}
                   className="w-full p-2 border border-gray-300 rounded"
