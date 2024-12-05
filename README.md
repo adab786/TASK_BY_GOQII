@@ -2,6 +2,8 @@
 
 ## Frontend (Vite + React)
 
+### Also added testcases and testing using vitest
+
 1. **Clone the repository:**
     ```sh
     git clone <repository-url>
